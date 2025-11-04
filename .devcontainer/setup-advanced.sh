@@ -1,245 +1,213 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "================================================"
-echo "CyberSecurity Lab - Advanced Setup Script"
-echo "================================================"
+# Advanced setup script for the cybersecurity Codespace.
+# Provides section toggles, richer logging, and automatic fallback compatibility.
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_DIR="${HOME}/tools"
+LOG_DIR="${HOME}/.cache/cyberlab"
+SKIP_SECTIONS="${SKIP_SECTIONS:-}"
 
-# Function to print colored output
-print_status() {
-    echo -e "${GREEN}[✓]${NC} $1"
+mkdir -p "${TOOLS_DIR}" "${LOG_DIR}"
+
+log()  { printf "\033[1;34m[INFO]\033[0m %s\n" "$*"; }
+warn() { printf "\033[1;33m[WARN]\033[0m %s\n" "$*"; }
+error(){ printf "\033[1;31m[ERR ]\033[0m %s\n" "$*"; }
+
+section_enabled() {
+  local section="$1"
+  if [[ -z "${SKIP_SECTIONS}" ]]; then
+    return 0
+  fi
+  if grep -qw "${section}" <<<"${SKIP_SECTIONS}"; then
+    warn "Skipping section '${section}' (requested via SKIP_SECTIONS)."
+    return 1
+  fi
+  return 0
 }
 
-print_warning() {
-    echo -e "${YELLOW}[!]${NC} $1"
+require_command() {
+  local cmd="$1"
+  if ! command -v "${cmd}" >/dev/null 2>&1; then
+    error "Required command '${cmd}' not found. Aborting advanced setup."
+    return 1
+  fi
 }
 
-print_error() {
-    echo -e "${RED}[✗]${NC} $1"
+sudo_noninteractive() {
+  sudo DEBIAN_FRONTEND=noninteractive "$@"
 }
 
-# Create tools directory
-mkdir -p $HOME/tools
+update_system() {
+  section_enabled "apt-update" || return 0
+  log "Updating system package metadata..."
+  sudo_noninteractive apt-get update
+  sudo_noninteractive apt-get dist-upgrade -y
+  sudo_noninteractive apt-get autoremove -y
+}
 
-echo ""
-print_status "Starting installation of cybersecurity tools..."
-echo ""
+ensure_system_helpers() {
+  section_enabled "system-helpers" || return 0
+  log "Ensuring auxiliary system helpers (dbus, polkit)..."
 
-# Update system
-echo "[1/12] Updating system packages..."
-sudo apt update -qq
-sudo apt upgrade -y -qq
-sudo apt autoremove -y -qq
-print_status "System updated"
+  if [[ ! -e /usr/libexec/polkitd && -x /usr/lib/polkit-1/polkitd ]]; then
+    sudo mkdir -p /usr/libexec
+    sudo ln -sf /usr/lib/polkit-1/polkitd /usr/libexec/polkitd
+  fi
 
-# Install base packages
-echo ""
-echo "[2/12] Installing base system packages..."
-echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
-sudo DEBIAN_FRONTEND=noninteractive apt install -y -qq \
-    curl \
-    wget \
-    php \
-    binwalk \
-    gimp \
-    wireshark \
-    tshark \
-    ht \
-    ltrace \
-    strace \
-    gdb \
-    patchelf \
-    elfutils \
-    unzip \
-    zip \
-    build-essential \
-    cmake \
-    nmap \
-    netcat \
-    socat \
-    sqlmap \
-    hashcat \
-    aircrack-ng \
-    hydra \
-    metasploit-framework 2>/dev/null || print_warning "Some packages may not be available"
+  sudo mkdir -p /run/dbus
+  if ! pgrep -f "dbus-daemon --system" >/dev/null 2>&1; then
+    if ! sudo dbus-daemon --system --fork; then
+      warn "Unable to launch system dbus daemon; continuing without it."
+    fi
+  fi
+}
 
-print_status "Base packages installed"
+install_apt_packages() {
+  section_enabled "apt-packages" || return 0
+  log "Installing base packages via apt..."
+  echo "wireshark-common wireshark-common/install-setuid boolean true" \
+    | sudo debconf-set-selections
 
-# Install Python packages
-echo ""
-echo "[3/12] Installing Python packages..."
-python3 -m pip install --user --quiet \
-    pyshark \
-    pwntools \
-    ropper \
-    pycryptodome \
-    mtp \
-    capstone==5.0.3 \
-    requests \
-    beautifulsoup4 \
-    scapy \
-    colorama
+  local packages=(
+    curl php binwalk gimp wireshark tshark nmap ht ltrace gdb patchelf elfutils
+    unzip wget build-essential aria2 jq python3-venv python3-full git
+  )
 
-print_status "Python packages installed"
+  sudo_noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+}
 
-# Install Ruby gems
-echo ""
-echo "[4/12] Installing Ruby gems..."
-sudo gem install one_gadget seccomp-tools --quiet --no-document
-print_status "Ruby gems installed"
+install_python_packages() {
+  section_enabled "python" || return 0
+  require_command python3 || return 1
+  log "Installing Python tooling into user environment..."
+  python3 -m pip install --user --upgrade pip wheel >/dev/null
+  python3 -m pip install --user --upgrade \
+    pyshark pwntools ropper pycryptodome mtp capstone==5.0.3 scapy
+}
 
-# Install Ngrok
-echo ""
-echo "[5/12] Installing Ngrok..."
-if ! command -v ngrok &> /dev/null; then
+install_ruby_gems() {
+  section_enabled "ruby" || return 0
+  require_command gem || return 1
+  log "Installing Ruby gems..."
+  sudo gem install --no-document one_gadget seccomp-tools
+}
+
+install_ngrok() {
+  section_enabled "ngrok" || return 0
+  log "Installing ngrok agent..."
+  if ! command -v ngrok >/dev/null 2>&1; then
     curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
-      | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
-      && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
-      | sudo tee /etc/apt/sources.list.d/ngrok.list \
-      && sudo apt update -qq \
-      && sudo apt install -y ngrok
-    print_status "Ngrok installed"
-else
-    print_warning "Ngrok already installed"
-fi
+      | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+      | sudo tee /etc/apt/sources.list.d/ngrok.list >/dev/null
+    sudo_noninteractive apt-get update
+    sudo_noninteractive apt-get install -y ngrok
+  else
+    log "ngrok already present, skipping."
+  fi
+}
 
-# Install Stegsolve
-echo ""
-echo "[6/12] Installing Stegsolve..."
-if [ ! -f "$HOME/tools/stegsolve.jar" ]; then
-    wget -q -O $HOME/tools/stegsolve.jar http://www.caesum.com/handbook/Stegsolve.jar
-    chmod +x $HOME/tools/stegsolve.jar
-    print_status "Stegsolve installed"
-else
-    print_warning "Stegsolve already installed"
-fi
+install_stegsolve() {
+  section_enabled "stegsolve" || return 0
+  local target="${TOOLS_DIR}/stegsolve.jar"
+  if [[ -f "${target}" ]]; then
+    log "Stegsolve already downloaded."
+    return 0
+  fi
+  log "Fetching Stegsolve..."
+  aria2c -q -o "${target}" http://www.caesum.com/handbook/Stegsolve.jar \
+    || wget -O "${target}" http://www.caesum.com/handbook/Stegsolve.jar
+  chmod +x "${target}"
+}
 
-# Install John The Ripper
-echo ""
-echo "[7/12] Installing John The Ripper (this may take a while)..."
-if [ ! -d "$HOME/tools/john" ]; then
-    git clone -q https://github.com/openwall/john -b bleeding-jumbo $HOME/tools/john
-    (cd $HOME/tools/john/src && ./configure --quiet && make -s clean && make -sj$(nproc)) > /dev/null 2>&1
-    print_status "John The Ripper compiled and installed"
-else
-    print_warning "John The Ripper already installed"
-fi
+build_john() {
+  section_enabled "john" || return 0
+  local target="${TOOLS_DIR}/john"
+  if [[ -d "${target}" ]]; then
+    log "John The Ripper already built."
+    return 0
+  fi
+  log "Cloning and compiling John The Ripper..."
+  git clone --depth=1 https://github.com/openwall/john -b bleeding-jumbo "${target}"
+  (cd "${target}/src" && ./configure && make -s clean && make -sj"$(nproc)")
+}
 
-# Install Postman
-echo ""
-echo "[8/12] Installing Postman..."
-if [ ! -d "$HOME/tools/Postman" ]; then
-    wget -q -O $HOME/tools/postman.tar.gz https://dl.pstmn.io/download/latest/linux_64
-    (cd $HOME/tools && tar -xzf postman.tar.gz)
-    rm $HOME/tools/postman.tar.gz
-    print_status "Postman installed"
-else
-    print_warning "Postman already installed"
-fi
+install_postman() {
+  section_enabled "postman" || return 0
+  local target="${TOOLS_DIR}/Postman"
+  if [[ -d "${target}" ]]; then
+    log "Postman already installed."
+    return 0
+  fi
+  log "Downloading Postman..."
+  aria2c -q -o "${TOOLS_DIR}/postman.tar.gz" https://dl.pstmn.io/download/latest/linux_64 \
+    || wget -O "${TOOLS_DIR}/postman.tar.gz" https://dl.pstmn.io/download/latest/linux_64
+  (cd "${TOOLS_DIR}" && tar -xf postman.tar.gz && rm -f postman.tar.gz)
+}
 
-# Install pwndbg
-echo ""
-echo "[9/12] Installing pwndbg (GDB enhancement)..."
-if [ ! -d "$HOME/tools/pwndbg" ]; then
-    git clone -q https://github.com/pwndbg/pwndbg $HOME/tools/pwndbg
-    (cd $HOME/tools/pwndbg && ./setup.sh) > /dev/null 2>&1
-    print_status "pwndbg installed"
-else
-    print_warning "pwndbg already installed"
-fi
+install_pwndbg() {
+  section_enabled "pwndbg" || return 0
+  local target="${TOOLS_DIR}/pwndbg"
+  if [[ -d "${target}" ]]; then
+    log "pwndbg already installed."
+    return 0
+  fi
+  log "Installing pwndbg..."
+  git clone --depth=1 https://github.com/pwndbg/pwndbg "${target}"
+  (cd "${target}" && ./setup.sh)
+}
 
-# Install Ghidra
-echo ""
-echo "[10/12] Installing Ghidra..."
-if [ ! -d "$HOME/tools/ghidra_11.2.1_PUBLIC" ]; then
-    wget -q -O $HOME/tools/ghidra.zip https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.2.1_build/ghidra_11.2.1_PUBLIC_20241105.zip
-    (cd $HOME/tools && unzip -q ghidra.zip)
-    rm $HOME/tools/ghidra.zip
-    print_status "Ghidra installed"
-else
-    print_warning "Ghidra already installed"
-fi
+install_ghidra() {
+  section_enabled "ghidra" || return 0
+  local target="${TOOLS_DIR}/ghidra_11.2.1_PUBLIC"
+  if [[ -d "${target}" ]]; then
+    log "Ghidra already present."
+    return 0
+  fi
+  log "Downloading Ghidra..."
+  local zip="${TOOLS_DIR}/ghidra.zip"
+  aria2c -q -o "${zip}" \
+    https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.2.1_build/ghidra_11.2.1_PUBLIC_20241105.zip \
+    || wget -O "${zip}" \
+      https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.2.1_build/ghidra_11.2.1_PUBLIC_20241105.zip
+  (cd "${TOOLS_DIR}" && unzip -q ghidra.zip && rm -f ghidra.zip)
+}
 
-# Install Binary Ninja Free
-echo ""
-echo "[11/12] Installing Binary Ninja (Free Version)..."
-if [ ! -d "$HOME/tools/binaryninja" ]; then
-    wget -q -O $HOME/tools/binaryninja.zip https://cdn.binary.ninja/installers/binaryninja_free_linux.zip
-    (cd $HOME/tools && unzip -q binaryninja.zip)
-    rm $HOME/tools/binaryninja.zip
-    print_status "Binary Ninja installed"
-else
-    print_warning "Binary Ninja already installed"
-fi
+post_summary() {
+  log "Advanced setup completed."
+  cat <<EOF
 
-# Setup PATH and aliases
-echo ""
-echo "[12/12] Setting up environment..."
-cat >> $HOME/.bashrc << 'EOF'
+Installed tools directory: ${TOOLS_DIR}
 
-# CyberSecurity Lab - Custom aliases and PATH
-export PATH="$HOME/tools/john/run:$PATH"
-export PATH="$HOME/tools/ghidra_11.2.1_PUBLIC:$PATH"
-export PATH="$HOME/tools/binaryninja:$PATH"
+Quick verification:
+  - python3 --version
+  - john --list=build-info (add ${TOOLS_DIR}/john/run to PATH)
+  - ${TOOLS_DIR}/pwndbg/gdbinit.py ensures pwndbg integration
 
-# Aliases
-alias ghidra='$HOME/tools/ghidra_11.2.1_PUBLIC/ghidraRun'
-alias binja='$HOME/tools/binaryninja/binaryninja'
-alias john='$HOME/tools/john/run/john'
-alias stegsolve='java -jar $HOME/tools/stegsolve.jar'
-alias postman='$HOME/tools/Postman/Postman'
-
-# Useful shortcuts
-alias ll='ls -alh'
-alias ports='netstat -tulanp'
-alias myip='curl ifconfig.me'
+Use 'SKIP_SECTIONS' (space-separated list) to skip heavy installs,
+e.g. 'SKIP_SECTIONS=\"john ghidra\" bash setup-advanced.sh'.
 
 EOF
+}
 
-print_status "Environment configured"
+main() {
+  log "Starting advanced cybersecurity tooling setup..."
+  update_system
+  install_apt_packages
+  ensure_system_helpers
+  install_python_packages
+  install_ruby_gems
+  install_ngrok
+  install_stegsolve
+  build_john
+  install_postman
+  install_pwndbg
+  install_ghidra
+  post_summary
+}
 
-echo ""
-echo "================================================"
-echo -e "${GREEN}Setup completed successfully!${NC}"
-echo "================================================"
-echo ""
-echo "📁 Installed tools location: $HOME/tools"
-echo ""
-echo "🛠️  Available tools:"
-echo "   Network Analysis:"
-echo "     - tshark, wireshark (CLI mode)"
-echo "     - nmap, netcat, socat"
-echo "   Password Cracking:"
-echo "     - john (John The Ripper)"
-echo "     - hashcat, hydra"
-echo "   Reverse Engineering:"
-echo "     - ghidra"
-echo "     - binja (Binary Ninja)"
-echo "   Debugging:"
-echo "     - gdb with pwndbg"
-echo "   Steganography:"
-echo "     - stegsolve"
-echo "     - binwalk"
-echo "   Web Security:"
-echo "     - sqlmap"
-echo "     - postman"
-echo "   Python Packages:"
-echo "     - pwntools, ropper, scapy"
-echo "   Others:"
-echo "     - ngrok"
-echo ""
-echo "💡 Quick commands:"
-echo "   ghidra      - Launch Ghidra"
-echo "   john        - John The Ripper"
-echo "   stegsolve   - Stegsolve jar"
-echo "   postman     - Launch Postman"
-echo ""
-echo "⚠️  Note: GUI tools may require additional configuration"
-echo "   Reload shell: source ~/.bashrc"
-echo "================================================"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
