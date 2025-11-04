@@ -9,7 +9,7 @@ LABEL maintainer="code-vinci"
 # Environment configuration
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TOOLS_DIR=/home/vscode/tools
-ENV PATH="${TOOLS_DIR}/john/run:${PATH}"
+ENV PATH="${TOOLS_DIR}/venv/bin:${TOOLS_DIR}/john/run:${PATH}"
 
 # Switch to root for installation
 USER root
@@ -39,11 +39,12 @@ USER vscode
 WORKDIR /home/vscode
 
 # Install Python packages
-RUN python3 -m pip install --user --no-cache-dir --upgrade pip wheel setuptools && \
-    python3 -m pip install --user --no-cache-dir pycryptodome ropper && \
-    python3 -m pip install --user --no-cache-dir pyshark scapy && \
-    python3 -m pip install --user --no-cache-dir pwntools && \
-    python3 -m pip install --user --no-cache-dir capstone mtp
+RUN python3 -m venv ${TOOLS_DIR}/venv && \
+    ${TOOLS_DIR}/venv/bin/pip install --no-cache-dir --upgrade pip wheel setuptools && \
+    ${TOOLS_DIR}/venv/bin/pip install --no-cache-dir pycryptodome ropper && \
+    ${TOOLS_DIR}/venv/bin/pip install --no-cache-dir pyshark scapy && \
+    ${TOOLS_DIR}/venv/bin/pip install --no-cache-dir pwntools && \
+    ${TOOLS_DIR}/venv/bin/pip install --no-cache-dir capstone mtp
 
 # Install user-specific tools
 RUN aria2c -q -d ${TOOLS_DIR} -o stegsolve.jar http://www.caesum.com/handbook/Stegsolve.jar || \
@@ -69,6 +70,9 @@ USER root
 RUN rm -f /tmp/setup*.sh
 COPY --chown=vscode:vscode setup.sh setup-advanced.sh setup-fallback.sh /home/vscode/.devcontainer/
 RUN mkdir -p /workspaces && chown -R vscode:vscode /workspaces
+
+# Activate venv by default for vscode user
+RUN echo 'source ${TOOLS_DIR}/venv/bin/activate' >> /home/vscode/.bashrc
 
 # Expose useful ports
 EXPOSE 8080 3000 5000
