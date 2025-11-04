@@ -13,7 +13,7 @@ ENV PATH="${TOOLS_DIR}/john/run:${PATH}"
 # Switch to root for installation
 USER root
 
-# Copy setup scripts into the container
+# Copy setup scripts into the container (files are in build context root since context is .devcontainer)
 COPY --chown=root:root setup.sh setup-advanced.sh setup-fallback.sh /tmp/
 
 # Make scripts executable
