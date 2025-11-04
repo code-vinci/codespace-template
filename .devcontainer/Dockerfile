@@ -1,22 +1,40 @@
-ARG BASE_IMAGE=mcr.microsoft.com/devcontainers/base:ubuntu
-FROM ${BASE_IMAGE}
+FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
-LABEL maintainer="franciuto"
+# Metadata labels
+LABEL org.opencontainers.image.title="Cybersecurity and CTF Tools Codespace"
+LABEL org.opencontainers.image.description="Pre-built cybersecurity lab environment with pentesting and CTF tools"
+LABEL maintainer="code-vinci"
 
-# Keep non-interactive during any incidental package operations (we do not install here).
+# Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Etc/UTC
-ENV HOME=/home/vscode
+ENV TOOLS_DIR=/home/vscode/tools
+ENV PATH="${TOOLS_DIR}/john/run:${PATH}"
 
-# Ensure workspace and devcontainer folder exist, copy setup script but do not execute it.
-# Do not run apt installs or the setup script in this Dockerfile.
-COPY --chown=1000:1000 .devcontainer/setup.sh /workspaces/.devcontainer/setup.sh
-RUN chmod +x /workspaces/.devcontainer/setup.sh || true
-RUN mkdir -p /workspaces && chown -R 1000:1000 /workspaces
+# Switch to root for installation
+USER root
 
-# Use the standard DevContainer non-root user
-USER vscode
+# Copy setup scripts into the container
+COPY --chown=root:root setup.sh setup-advanced.sh setup-fallback.sh /tmp/
+
+# Make scripts executable
+RUN chmod +x /tmp/setup*.sh
+
+# Run the advanced setup script (it handles all installations)
+RUN bash /tmp/setup-advanced.sh || echo "Advanced setup completed with warnings"
+
+# Clean up temporary scripts
+RUN rm -f /tmp/setup*.sh
+
+# Copy setup scripts to home directory for reference
+COPY --chown=vscode:vscode setup.sh setup-advanced.sh setup-fallback.sh /home/vscode/.devcontainer/
+
+# Set working directory
 WORKDIR /workspaces
 
-# Default command: open a shell. No setup actions performed here.
+# Expose common ports for web apps and services
+EXPOSE 8080 3000 5000
+
+# Switch to vscode user
+USER vscode
+
 CMD ["/bin/bash"]
