@@ -24,8 +24,6 @@ RUN apt-get update && \
     libpcap-dev pkg-config libcapstone-dev && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
-    apt-get autoremove -y && 
-    rm -rf /var/lib/apt/lists/*
 
 # Install global tools (Ruby gems, ngrok)
 RUN gem install --no-document one_gadget seccomp-tools && \
