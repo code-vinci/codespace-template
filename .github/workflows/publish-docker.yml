@@ -38,8 +38,8 @@ jobs:
           file: .devcontainer/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/cybersecurity-codespace:latest
-            ghcr.io/${{ github.repository_owner }}/cybersecurity-codespace:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/codevinci-codespace:latest
+            ghcr.io/${{ github.repository_owner }}/codevinci-codespace:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.description=Cybersecurity and CTF tools Codespace
+            org.opencontainers.image.description=CodeVinci GitHub Codespace Template

@@ -2,7 +2,7 @@
 set -e
 
 echo "================================================"
-echo "CyberSecurity Lab - Setup Script"
+echo "CodeVinci Codespace - Setup Script"
 echo "================================================"
 
 # Create tools directory

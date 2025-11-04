@@ -1,6 +1,6 @@
 {
-  "name": "Cybersecurity & Reverse Engineering Tools",
-  "image": "ghcr.io/code-vinci/cybersecurity-codespace:latest",
+  "name": "CodeVinci GitHub Codespace Template",
+  "image": "ghcr.io/code-vinci/codevinci-codespace:latest",
   "customizations": {
     "vscode": {
       "extensions": [

@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
 # Metadata labels
-LABEL org.opencontainers.image.title="Cybersecurity and CTF Tools Codespace"
-LABEL org.opencontainers.image.description="Pre-built cybersecurity lab environment with pentesting and CTF tools"
+LABEL org.opencontainers.image.title="CodeVinci GitHub Codespace Template"
+LABEL org.opencontainers.image.description="CodeVinci development environment with security and CTF tools"
 LABEL maintainer="code-vinci"
 
 # Set environment variables
