@@ -15,13 +15,15 @@ ENV PATH="${TOOLS_DIR}/john/run:${PATH}"
 USER root
 
 # System update and installation of dependencies
-RUN apt-get update && \
-    apt-get dist-upgrade -y && \
-    echo "wireshark-common wireshark-common/install-setuid boolean true" | debconf-set-selections && \
+RUN apt-get update && 
+    apt-get dist-upgrade -y && 
+    echo "wireshark-common wireshark-common/install-setuid boolean true" | debconf-set-selections && 
     apt-get install -y --no-install-recommends \
     curl php binwalk gimp wireshark tshark nmap ht ltrace gdb patchelf elfutils \
-    unzip wget build-essential aria2 jq python3-venv python3-full git ruby ruby-dev && \
-    apt-get autoremove -y && \
+    unzip wget build-essential aria2 jq python3-venv python3-full git ruby ruby-dev \
+    libpcap-dev pkg-config libcapstone-dev && \
+    libpcap-dev pkg-config libcapstone-dev && 
+    apt-get autoremove -y && 
     rm -rf /var/lib/apt/lists/*
 
 # Install global tools (Ruby gems, ngrok)
