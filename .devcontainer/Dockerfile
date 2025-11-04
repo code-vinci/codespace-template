@@ -54,17 +54,9 @@ RUN aria2c -q -d ${TOOLS_DIR} -o stegsolve.jar http://www.caesum.com/handbook/St
 RUN git clone --depth=1 https://github.com/openwall/john -b bleeding-jumbo ${TOOLS_DIR}/john && \
     cd ${TOOLS_DIR}/john/src && ./configure && make -s clean && make -sj"$(nproc)"
 
-RUN (aria2c -q -o ${TOOLS_DIR}/postman.tar.gz https://dl.pstmn.io/download/latest/linux_64 || \
-    wget -O ${TOOLS_DIR}/postman.tar.gz https://dl.pstmn.io/download/latest/linux_64) && \
-    cd ${TOOLS_DIR} && tar -xf postman.tar.gz && rm -f postman.tar.gz
-
 RUN git clone --depth=1 https://github.com/pwndbg/pwndbg ${TOOLS_DIR}/pwndbg && \
     cd ${TOOLS_DIR}/pwndbg && ./setup.sh
-
-RUN (aria2c -q -o ${TOOLS_DIR}/ghidra.zip https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.2.1_build/ghidra_11.2.1_PUBLIC_20241105.zip || \
-    wget -O ${TOOLS_DIR}/ghidra.zip https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.2.1_build/ghidra_11.2.1_PUBLIC_20241105.zip) && \
-    cd ${TOOLS_DIR} && unzip -q ghidra.zip && rm -f ghidra.zip
-
+    
 # Final setup
 USER root
 RUN rm -f /tmp/setup*.sh
