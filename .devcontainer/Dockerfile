@@ -21,7 +21,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl php binwalk gimp wireshark tshark nmap ht ltrace gdb patchelf elfutils \
     unzip wget build-essential aria2 jq python3-venv python3-full git ruby ruby-dev \
-    libpcap-dev pkg-config libcapstone-dev && \
+    libpcap-dev pkg-config libcapstone-dev python3-dev libffi-dev libssl-dev && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
