@@ -23,6 +23,9 @@ RUN chmod +x /tmp/setup*.sh
 # Execute main setup script; fallback on warning if partial failure
 RUN bash /tmp/setup-advanced.sh || echo "[WARN] setup-advanced.sh completed with warnings"
 
+# Verify tools directory was created and list contents
+RUN ls -la /home/vscode/ && ls -la /home/vscode/tools/ || echo "Tools directory not found or empty"
+
 # Remove temporary installation scripts after setup
 RUN rm -f /tmp/setup*.sh
 
@@ -30,7 +33,7 @@ RUN rm -f /tmp/setup*.sh
 COPY --chown=vscode:vscode setup.sh setup-advanced.sh setup-fallback.sh /home/vscode/.devcontainer/
 
 # Ensure ownership and prepare workspace directory
-RUN mkdir -p /workspaces && chown -R vscode:vscode /home/vscode /workspaces
+RUN mkdir -p /workspaces ${TOOLS_DIR} && chown -R vscode:vscode /home/vscode /workspaces
 
 # Expose useful ports
 EXPOSE 8080 3000 5000
