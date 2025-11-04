@@ -41,7 +41,13 @@ WORKDIR /home/vscode
 # Install Python packages
 RUN python3 -m pip install --user --upgrade pip wheel && \
     python3 -m pip install --user --upgrade \
-    pyshark pwntools ropper pycryptodome mtp capstone==5.0.3 scapy
+    pycryptodome ropper && \
+    python3 -m pip install --user --upgrade \
+    pyshark scapy && \
+    python3 -m pip install --user --upgrade \
+    pwntools && \
+    python3 -m pip install --user --upgrade \
+    capstone mtp
 
 # Install user-specific tools
 RUN aria2c -q -d ${TOOLS_DIR} -o stegsolve.jar http://www.caesum.com/handbook/Stegsolve.jar || \
