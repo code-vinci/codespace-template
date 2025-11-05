@@ -19,8 +19,8 @@ RUN apt-get update && \
     apt-get dist-upgrade -y && \
     echo "wireshark-common wireshark-common/install-setuid boolean true" | debconf-set-selections && \
     apt-get install -y --no-install-recommends \
-    curl php binwalk gimp wireshark tshark nmap ht ltrace gdb patchelf elfutils \
-    unzip wget build-essential aria2 jq python3-venv python3-full git ruby ruby-dev \
+    curl php binwalk gimp wireshark tshark nmap ht ltrace strace gdb patchelf elfutils \
+    unzip zip wget build-essential cmake default-jdk netcat-openbsd socat aria2 jq python3-venv python3-full git ruby ruby-dev \
     libpcap-dev pkg-config libcapstone-dev python3-dev libffi-dev libssl-dev && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
@@ -46,16 +46,13 @@ RUN python3 -m venv ${TOOLS_DIR}/venv && \
     ${TOOLS_DIR}/venv/bin/pip install --no-cache-dir pwntools && \
     ${TOOLS_DIR}/venv/bin/pip install --no-cache-dir capstone mtp
 
-# Install user-specific tools
-RUN aria2c -q -d ${TOOLS_DIR} -o stegsolve.jar http://www.caesum.com/handbook/Stegsolve.jar || \
-    wget -O ${TOOLS_DIR}/stegsolve.jar http://www.caesum.com/handbook/Stegsolve.jar && \
-    chmod +x ${TOOLS_DIR}/stegsolve.jar
 
 RUN git clone --depth=1 https://github.com/openwall/john -b bleeding-jumbo ${TOOLS_DIR}/john && \
     cd ${TOOLS_DIR}/john/src && ./configure && make -s clean && make -sj"$(nproc)"
 
 RUN git clone --depth=1 https://github.com/pwndbg/pwndbg ${TOOLS_DIR}/pwndbg && \
     cd ${TOOLS_DIR}/pwndbg && ./setup.sh
+
     
 # Final setup
 USER root
@@ -63,8 +60,9 @@ RUN rm -f /tmp/setup*.sh
 COPY --chown=vscode:vscode setup.sh setup-advanced.sh setup-fallback.sh /home/vscode/.devcontainer/
 RUN mkdir -p /workspaces && chown -R vscode:vscode /workspaces
 
-# Activate venv by default for vscode user
-RUN echo 'source ${TOOLS_DIR}/venv/bin/activate' >> /home/vscode/.bashrc
+# Activate venv by default for vscode user and create john alias
+RUN echo 'source ${TOOLS_DIR}/venv/bin/activate' >> /home/vscode/.bashrc && \
+    echo 'alias john="${TOOLS_DIR}/john/run/john"' >> /home/vscode/.bashrc
 
 # Expose useful ports
 EXPOSE 8080 3000 5000
