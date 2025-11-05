@@ -1,6 +1,6 @@
 {
   "name": "CodeVinci GitHub Codespace Template",
-  "image": "ghcr.io/code-vinci/codevinci-codespace:latest",
+  "image": "ghcr.io/franciuto/codespace-template:latest",
   "customizations": {
     "vscode": {
       "extensions": [
