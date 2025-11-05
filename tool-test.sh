@@ -68,11 +68,6 @@ check_present "patchelf" patchelf
 
 if command -v readelf >/dev/null 2>&1; then ok "readelf"; else err "readelf" "missing"; fi
 
-# GUI programs presence only
-
-check_present "wireshark" wireshark || ok "wireshark (present check tolerated)"
-check_present "gimp" gimp || ok "gimp (present check tolerated)"
-
 # Ruby gems / CLI
 
 if command -v gem >/dev/null 2>&1; then

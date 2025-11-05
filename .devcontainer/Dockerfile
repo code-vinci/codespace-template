@@ -19,7 +19,7 @@ RUN apt-get update && \
     apt-get dist-upgrade -y && \
     echo "wireshark-common wireshark-common/install-setuid boolean true" | debconf-set-selections && \
     apt-get install -y --no-install-recommends \
-    curl php binwalk gimp wireshark tshark nmap ht ltrace strace gdb patchelf elfutils \
+    curl php binwalk tshark nmap ht ltrace strace gdb patchelf elfutils \
     unzip zip wget build-essential cmake default-jdk tcpdump netcat-openbsd socat aria2 jq python3-venv python3-full git ruby ruby-dev \
     libpcap-dev pkg-config libcapstone-dev python3-dev libffi-dev libssl-dev && \
     apt-get autoremove -y && \
